@@ -1,4 +1,3 @@
-from tkinter import YES
 import streamlit as st
 import datetime
 import time
