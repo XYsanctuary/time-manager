@@ -8,7 +8,7 @@ import pandas as pd
 import streamlit.components.v1 as components
 import database as db
 
-# 初始化session state
+# 初始化
 if 'user_id' not in st.session_state:
     st.session_state.user_id = None
 if 'username' not in st.session_state:
@@ -69,23 +69,21 @@ def show_auth():
                     else:
                         st.error("用户名已存在")
 
-# 如果用户未登录，显示登录界面
+# 未登录，显示登录界面
 if st.session_state.user_id is None:
     st.title("个人效率工具")
     show_auth()
     st.stop()
 
 
-# 侧边栏
 with st.sidebar:
     st.markdown(f"# 🚀 个人效率工具")
     st.markdown(f"**欢迎，{st.session_state.username}**")
     st.markdown("---")
     
-    # 页面选择
     page = st.radio(
         "选择功能",
-        ["主页", "📚 日程规划", "📅 甘特图"],
+        ["主页", "📚 日程记录", "📅 甘特图"],
         index=0
     )
     
@@ -98,13 +96,12 @@ with st.sidebar:
     
     st.info("选择左侧功能来管理你的时间和任务")
 
-# 根据选择显示不同内容
 if "甘特图" in page:
     st.title("📅 甘特图")
     
-    # 初始化session state
+    # 初始化
     if 'gantt_tasks' not in st.session_state:
-        # 检查并标记过期任务
+        # 检查标记任务
         try:
             expired_tasks = db.check_and_mark_expired_tasks(st.session_state.user_id)
             if expired_tasks:
@@ -123,13 +120,13 @@ if "甘特图" in page:
     if 'scoring_task' not in st.session_state:
         st.session_state.scoring_task = None
     
-    # 检查是否有未评分的已完成任务
+    # 检查
     unscored_tasks = db.get_unscored_completed_tasks(st.session_state.user_id)
     if unscored_tasks and 'showing_score_dialog' not in st.session_state:
         st.session_state.showing_score_dialog = True
-        st.session_state.scoring_task = unscored_tasks[0]  # 取第一个未评分的任务
+        st.session_state.scoring_task = unscored_tasks[0] 
     
-    # 评分对话框
+    # 评分
     if st.session_state.scoring_task:
         task_id, title, start_date, end_date = st.session_state.scoring_task
         with st.form("任务评分表单", clear_on_submit=True):
@@ -146,22 +143,20 @@ if "甘特图" in page:
                 skip_score = st.form_submit_button("稍后评分")
             
             if submit_score:
-                # 使用 mark_task_completed 函数来同时标记完成和设置评分
                 db.mark_task_completed(task_id, score)
                 st.success("评分已提交！")
-                # 更新任务列表
+                # 更新
                 st.session_state.gantt_tasks = db.get_incomplete_tasks(st.session_state.user_id)
                 st.session_state.completed_tasks = db.get_completed_tasks(st.session_state.user_id)
                 st.session_state.scoring_task = None
                 st.session_state.showing_score_dialog = False
-                # 强制刷新页面
                 st.rerun()
             
             if skip_score:
                 st.session_state.scoring_task = None
                 st.session_state.showing_score_dialog = False
                 st.rerun()
-    # 添加/编辑任务表单
+    # 添加
     if "show_gantt_form" not in st.session_state:
         st.session_state.show_gantt_form = False
     
@@ -186,7 +181,6 @@ if "甘特图" in page:
                 end_date = st.date_input("结束日期", 
                                        value=st.session_state.get('gantt_edit_end_date', datetime.now().date() + timedelta(days=1)))
             
-            # 颜色选择
             color_options = {
                 "红色": "#FF6B6B",
                 "蓝色": "#45B7D1", 
@@ -208,33 +202,33 @@ if "甘特图" in page:
                 cancel = st.form_submit_button("取消")
             
             if submit and title:
-                # 确保结束日期不早于开始日期
+                # 日期限制
                 if end_date < start_date:
                     st.error("结束日期不能早于开始日期")
                 else:
                     color = color_options[selected_color]
                     
                     if st.session_state.editing_gantt_task is None:
-                        # 新增任务
+                        # 新增
                         task_id = db.add_gantt_task(st.session_state.user_id, title, description, 
                                                   start_date.strftime("%Y-%m-%d"), 
                                                   end_date.strftime("%Y-%m-%d"),
                                                   color, progress)
                         st.success("任务添加成功！")
                     else:
-                        # 编辑任务
+                        # 编辑
                         db.update_gantt_task(st.session_state.editing_gantt_task, title, description,
                                            start_date.strftime("%Y-%m-%d"), 
                                            end_date.strftime("%Y-%m-%d"),
                                            color, progress)
                         st.success("任务更新成功！")
                     
-                    # 更新session state中的任务列表
+                    # 更新
                     st.session_state.gantt_tasks = db.get_incomplete_tasks(st.session_state.user_id)
                     st.session_state.completed_tasks = db.get_completed_tasks(st.session_state.user_id)
                     st.session_state.show_gantt_form = False
                     st.session_state.editing_gantt_task = None
-                    # 清理编辑状态
+
                     for key in ['gantt_edit_title', 'gantt_edit_description', 'gantt_edit_start_date', 
                                'gantt_edit_end_date', 'gantt_edit_color_name', 'gantt_edit_progress']:
                         if key in st.session_state:
@@ -244,16 +238,16 @@ if "甘特图" in page:
             if cancel:
                 st.session_state.show_gantt_form = False
                 st.session_state.editing_gantt_task = None
-                # 清理编辑状态
+                
                 for key in ['gantt_edit_title', 'gantt_edit_description', 'gantt_edit_start_date', 
                            'gantt_edit_end_date', 'gantt_edit_color_name', 'gantt_edit_progress']:
                     if key in st.session_state:
                         del st.session_state[key]
                 st.rerun()
     
-    # 显示甘特图
+    # 显示
     if st.session_state.gantt_tasks:
-        # 计算日期范围（只基于未完成的任务）
+        
         all_dates = []
         for task in st.session_state.gantt_tasks:
             task_id, title, description, start_date, end_date, color, progress, score = task
@@ -271,7 +265,7 @@ if "甘特图" in page:
                 date_range.append(current_date)
                 current_date += timedelta(days=1)
             
-            # 过滤日期范围
+            # 过滤
             today = datetime.now().date()
             filtered_dates = [date for date in date_range if date >= today]
 
@@ -291,7 +285,6 @@ if "甘特图" in page:
                 # 标记任务期间的日期
                 current = start
                 while current <= end:
-                    # 只标记在当前日期及以后的日期
                     if current >= today:
                         date_str = current.strftime("%m/%d")
                         if date_str in date_columns:
@@ -299,12 +292,11 @@ if "甘特图" in page:
                             gantt_df.loc[title, date_str] = "task"
                     current += timedelta(days=1)
             
-            # 创建带样式的HTML表格 - 包含倒计时信息
+            # 创建表格
             def gantt_to_html(df, tasks):
                 html = ['<div style="overflow-x: auto;">']
                 html.append('<table style="border-collapse: collapse; width: 100%; table-layout: fixed; font-size: 12px;">')
                 
-                # 表头
                 html.append('<tr>')
                 html.append('<th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2; width: 150px; text-align: center;">任务</th>')
                 html.append('<th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2; width: 100px; text-align: center;">倒计时</th>')
@@ -312,12 +304,10 @@ if "甘特图" in page:
                     html.append(f'<th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2; width: 40px; text-align: center;">{col}</th>')
                 html.append('</tr>')
                 
-                # 表格内容
                 today = datetime.now().date()
                 for idx, row in df.iterrows():
                     html.append('<tr style="height: 40px;">')
                     
-                    # 找到当前任务
                     current_task = None
                     for task in tasks:
                         if task[1] == idx:
@@ -329,36 +319,33 @@ if "甘特图" in page:
                         start = datetime.strptime(start_date, "%Y-%m-%d").date()
                         end = datetime.strptime(end_date, "%Y-%m-%d").date()
                         
-                        # 任务名称
                         html.append(f'<td style="border: 1px solid #ddd; padding: 4px; background-color: #f8f9fa; text-align: left; vertical-align: middle;"><strong>{title}</strong></td>')
                         
-                        # 倒计时信息
+                        # 倒计时
                         countdown_text = ""
                         
                         if today < start:
-                            # 任务未开始 - 显示开始倒计时
+                            # 未开始 - 开始倒计时
                             days_until_start = (start - today).days
                             if days_until_start <= 1:
                                 countdown_text = f"<span style='color: red; font-weight: bold;'>即将开始: {days_until_start}天</span>"
                             else:
                                 countdown_text = f"开始: {days_until_start}天"
                         elif today <= end:
-                            # 任务进行中 - 显示结束倒计时
+                            # 进行中 - 显示结束倒计时
                             days_until_end = (end - today).days
                             if days_until_end <= 1:
                                 countdown_text = f"<span style='color: red; font-weight: bold;'>即将结束: {days_until_end}天</span>"
                             else:
                                 countdown_text = f"结束: {days_until_end}天"
                         else:
-                            # 任务已结束但未标记完成
+                            # 已结束
                             countdown_text = "<span style='color: orange; font-weight: bold;'>已过期</span>"
                         
                         html.append(f'<td style="border: 1px solid #ddd; padding: 4px; background-color: #f8f9fa; text-align: center; vertical-align: middle;">{countdown_text}</td>')
                         
-                        # 任务时间轴
                         for cell in row:
                             if pd.notna(cell) and cell == "task":
-                                # 纯色背景
                                 html.append(f'<td style="border: 1px solid #ddd; padding: 0; background-color: {color}; text-align: center; vertical-align: middle;"></td>')
                             else:
                                 html.append('<td style="border: 1px solid #ddd; padding: 0; text-align: center; vertical-align: middle;"></td>')
@@ -373,14 +360,10 @@ if "甘特图" in page:
             components.html(gantt_to_html(gantt_df.fillna(""), st.session_state.gantt_tasks), 
                         height=min(600, 40 * len(st.session_state.gantt_tasks) + 100), 
                         scrolling=True)
-            
-            
-                # 在甘特图页面代码中找到任务管理部分，修改如下：
 
-        # 任务管理 - 未完成任务
+        # 任务管理
         st.markdown("### 任务管理")
 
-        # 为未完成任务设置稍小的宽度
         st.markdown("""
         <style>
         .incomplete-task .stProgress > div > div {
@@ -392,41 +375,37 @@ if "甘特图" in page:
         for task in st.session_state.gantt_tasks:
             task_id, title, description, start_date, end_date, color, progress, score = task
             
-            # 计算倒计时
             today = datetime.now().date()
             start = datetime.strptime(start_date, "%Y-%m-%d").date()
             end = datetime.strptime(end_date, "%Y-%m-%d").date()
             
-            # 计算自动进度（随时间均匀增加）
+            # 进度
             if today < start:
-                # 任务未开始
                 auto_progress = 0
                 countdown_text = f"开始: {(start - today).days}天"
                 if (start - today).days <= 1:
                     countdown_text = f"<span style='color: red; font-weight: bold;'>即将开始: {(start - today).days}天</span>"
             elif today > end:
-                # 任务已过期但未标记完成
+                # 任务已过期
                 auto_progress = 100
                 countdown_text = "<span style='color: orange; font-weight: bold;'>已过期</span>"
             else:
-                # 任务进行中 - 计算基于时间的进度
+                # 进行中
                 total_days = (end - start).days
                 elapsed_days = (today - start).days
                 if total_days > 0:
                     auto_progress = min(100, int((elapsed_days / total_days) * 100))
                 else:
-                    auto_progress = 100  # 开始和结束是同一天
+                    auto_progress = 100 
                     
                 countdown_text = f"结束: {(end - today).days}天"
                 if (end - today).days <= 1:
                     countdown_text = f"<span style='color: red; font-weight: bold;'>即将结束: {(end - today).days}天</span>"
             
-            # 使用列布局，但为未完成任务设置较小的宽度
             col1, col2, col3, col4, col5 = st.columns([3, 1, 1, 1, 1])
             with col1:
                 st.write(f"**{title}** - {start_date} 至 {end_date}")
                 st.markdown(countdown_text, unsafe_allow_html=True)
-                # 应用较小的进度条宽度，显示自动计算的进度
                 st.markdown('<div class="incomplete-task">', unsafe_allow_html=True)
                 st.progress(auto_progress/100)
                 st.markdown('</div>', unsafe_allow_html=True)
@@ -446,7 +425,6 @@ if "甘特图" in page:
                     st.session_state.gantt_edit_start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
                     st.session_state.gantt_edit_end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
                     
-                    # 找到颜色名称
                     color_names = {
                         "#FF6B6B": "红色",
                         "#45B7D1": "蓝色", 
@@ -456,7 +434,7 @@ if "甘特图" in page:
                         "#4ECDC4": "青色"
                     }
                     st.session_state.gantt_edit_color_name = color_names.get(color, "蓝色")
-                    st.session_state.gantt_edit_progress = auto_progress  # 使用自动计算的进度
+                    st.session_state.gantt_edit_progress = auto_progress 
                     st.session_state.show_gantt_form = True
                     st.rerun()
             with col5:
@@ -469,19 +447,18 @@ if "甘特图" in page:
     else:
             st.info("还没有添加任何未完成的甘特图任务")
     
-    # 显示已完成任务 - 在页面底部折叠显示
+    # 已完成任务
     if st.session_state.completed_tasks:
         st.markdown("---")
         with st.expander(f"📁 已完成的任务 ({len(st.session_state.completed_tasks)}个)", expanded=False):
             st.markdown("### 已完成的任务")
             
-            # 使用一个列表来跟踪需要删除的任务
             tasks_to_delete = []
             
             for task in st.session_state.completed_tasks:
                 task_id, title, start_date, end_date, score, completed_at = task
                 
-                # 格式化完成时间
+                # 格式化
                 completed_time = ""
                 if completed_at:
                     try:
@@ -490,7 +467,7 @@ if "甘特图" in page:
                     except:
                         completed_time = completed_at
                 
-                # 显示评分星星
+                # 显示评分
                 score_stars = "⭐" * (score if score else 0)
                 
                 col1, col2, col3 = st.columns([3, 1, 1])
@@ -504,18 +481,17 @@ if "甘特图" in page:
                     else:
                         st.write("未评分")
                 with col3:
-                    # 使用 session state 来跟踪删除确认状态
                     delete_key = f"delete_completed_{task_id}"
                     if delete_key not in st.session_state:
                         st.session_state[delete_key] = False
                     
                     if not st.session_state[delete_key]:
-                        # 第一次点击 - 显示确认删除按钮
+                        # 第一次点击
                         if st.button("删除", key=f"init_delete_{task_id}"):
                             st.session_state[delete_key] = True
                             st.rerun()
                     else:
-                        # 第二次点击 - 显示确认提示和最终删除按钮
+                        # 第二次点击
                         st.warning("确认删除此任务？")
                         col_confirm, col_cancel = st.columns(2)
                         with col_confirm:
@@ -526,16 +502,14 @@ if "甘特图" in page:
                                 st.session_state[delete_key] = False
                                 st.rerun()
             
-            # 处理所有需要删除的任务
             if tasks_to_delete:
                 for task_id in tasks_to_delete:
                     db.delete_gantt_task(task_id)
-                    # 清除删除状态
                     delete_key = f"delete_completed_{task_id}"
                     if delete_key in st.session_state:
                         del st.session_state[delete_key]
                 
-                # 更新已完成任务列表
+                # 更新
                 st.session_state.completed_tasks = db.get_completed_tasks(st.session_state.user_id)
                 st.success(f"已删除 {len(tasks_to_delete)} 个任务")
                 st.rerun()
@@ -546,7 +520,6 @@ if "甘特图" in page:
 elif "主页" in page:
     st.title("这是一个主页")
     
-    # 获取当前点赞数
     likes_count = db.get_likes_count()
     
     intro, why, thanks = st.tabs(["**介绍**", "**为何**", "**感谢**"])
@@ -621,7 +594,6 @@ elif "主页" in page:
         我们会认真考虑每一个反馈，并持续改进这个工具！
         """)
         
-         # 点赞按钮 - 放在介绍页面
         st.markdown("---")
         st.markdown("### 喜欢这个工具吗？")
         
@@ -630,7 +602,7 @@ elif "主页" in page:
             if st.button(f"❤️ 点赞 ({likes_count})", use_container_width=True, type="primary"):
                 new_count = db.increment_likes()
                 st.success(f"感谢您的点赞！总点赞数: {new_count}")
-                st.balloons()  # 添加庆祝效果
+                st.balloons()  
                 st.rerun()
         with col2:
             if st.button(f"支持这个网站 ", use_container_width=True, type="primary"):
@@ -639,7 +611,7 @@ elif "主页" in page:
     
 
 
-elif "日程规划" in page:
+elif "日程记录" in page:
     st.title("📚 日程规划")
     
     # 日期范围选择
@@ -655,19 +627,19 @@ elif "日程规划" in page:
             end_date = start_date + timedelta(days=6)
             st.rerun()
     
-    # 确保结束日期不早于开始日期
+    # 日期限制
     if end_date < start_date:
         st.error("结束日期不能早于开始日期")
         end_date = start_date
     
-    # 生成日期范围
+    # 生成日期
     date_range = []
     current_date = start_date
     while current_date <= end_date:
         date_range.append(current_date)
         current_date += timedelta(days=1)
     
-    # 生成时间槽（5:00-24:00，每5分钟一格）- 内部存储使用
+    # 生成时间选项（5:00-24:00，每5分钟一格
     def generate_time_slots():
         time_slots = []
         for hour in range(5, 24):
@@ -678,7 +650,7 @@ elif "日程规划" in page:
     
     time_slots = generate_time_slots()
     
-    # 生成显示用的时间标签（每20分钟显示一次）
+    # 显示用的时间标签（20分钟一次）
     def generate_display_time_slots():
         display_slots = []
         for hour in range(5, 24):
@@ -689,7 +661,7 @@ elif "日程规划" in page:
     
     display_time_slots = generate_display_time_slots()
     
-    # 创建空的数据框 - 使用日期作为列
+
     date_columns = [date.strftime("%m/%d") + f"({['一','二','三','四','五','六','日'][date.weekday()]})" for date in date_range]
     schedule_df = pd.DataFrame(index=display_time_slots, columns=date_columns)
     
@@ -712,7 +684,6 @@ elif "日程规划" in page:
             
             col1, col2 = st.columns(2)
             with col1:
-                # 选择具体日期
                 task_date = st.date_input("任务日期", 
                                         value=st.session_state.get('edit_date', datetime.now().date()))
             
@@ -739,11 +710,11 @@ elif "日程规划" in page:
                                          index=st.session_state.get('edit_end_min', 0),
                                          key="end_min")
             
-            # 组合时间字符串
+            # 组合时间
             start_slot = f"{start_hour:02d}:{start_min:02d}"
             end_slot = f"{end_hour:02d}:{end_min:02d}"
             
-            # 验证时间
+            # 验证
             if start_slot >= end_slot:
                 st.error("结束时间必须晚于开始时间")
             
@@ -754,21 +725,21 @@ elif "日程规划" in page:
                 cancel = st.form_submit_button("取消")
             
             if submit and title and start_slot < end_slot:
-                # 保存任务到数据库
+                # 保存
                 task_date_str = task_date.strftime("%Y-%m-%d")
                 
                 if st.session_state.editing_task is None:
-                    # 新增任务
+                    # 新增
                     task_id = db.add_task(st.session_state.user_id, title, description, 
                                                   task_date_str, start_slot, end_slot)
                     st.success("任务添加成功！")
                 else:
-                    # 编辑任务
+                    # 编辑
                     db.update_task(st.session_state.editing_task, title, description,
                                            task_date_str, start_slot, end_slot)
                     st.success("任务更新成功！")
                 
-                # 更新session state中的任务列表
+                # 更新
                 st.session_state.tasks = db.get_user_tasks_by_date_range(
                     st.session_state.user_id, 
                     start_date.strftime("%Y-%m-%d"),
@@ -776,7 +747,7 @@ elif "日程规划" in page:
                 )
                 st.session_state.show_task_form = False
                 st.session_state.editing_task = None
-                # 清理编辑状态
+                
                 for key in ['edit_title', 'edit_description', 'edit_date', 
                            'edit_start_hour', 'edit_start_min', 'edit_end_hour', 'edit_end_min']:
                     if key in st.session_state:
@@ -786,29 +757,27 @@ elif "日程规划" in page:
             if cancel:
                 st.session_state.show_task_form = False
                 st.session_state.editing_task = None
-                # 清理编辑状态
                 for key in ['edit_title', 'edit_description', 'edit_date', 
                            'edit_start_hour', 'edit_start_min', 'edit_end_hour', 'edit_end_min']:
                     if key in st.session_state:
                         del st.session_state[key]
                 st.rerun()
     
-    # 显示日程表
+    # 显示
     st.markdown(f"### {start_date.strftime('%Y/%m/%d')} - {end_date.strftime('%Y/%m/%d')} 日程安排")
     
-    # 获取当前日期范围内的任务
+    # 获取任务
     current_tasks = db.get_user_tasks_by_date_range(
         st.session_state.user_id, 
         start_date.strftime("%Y-%m-%d"),
         end_date.strftime("%Y-%m-%d")
     )
     
-    # 创建带样式的表格
+    # 创建表格
     def style_schedule(df, tasks, date_columns):
         """为表格添加样式"""
         styled_df = df.copy()
         
-        # 预定义的好看颜色列表
         predefined_colors = [
             "#FF9AA2",  # 柔和的红色
             "#FFB7B2",  # 浅珊瑚色
@@ -824,16 +793,14 @@ elif "日程规划" in page:
             "#2583D6A9",  # 深蓝色
         ]
         
-        # 为每个任务分配颜色
+        # 分配颜色
         task_colors = {}
         for i, task in enumerate(tasks):
             task_id, title, description, task_date, start, end = task
             if task_id not in task_colors:
-                # 使用任务ID对颜色列表长度取模来循环使用颜色
                 color_index = task_id % len(predefined_colors)
                 task_colors[task_id] = predefined_colors[color_index]
         
-        # 创建颜色数据框
         color_df = pd.DataFrame(index=display_time_slots, columns=date_columns)
         
         for task in tasks:
@@ -853,8 +820,8 @@ elif "日程规划" in page:
                     end_idx = time_slots.index(end)
                     
                     # 将5分钟间隔映射到20分钟显示间隔
-                    display_start_idx = start_idx // 4  # 4个5分钟=20分钟
-                    display_end_idx = (end_idx - 1) // 4 + 1  # 确保结束时间能覆盖到
+                    display_start_idx = start_idx // 4  
+                    display_end_idx = (end_idx - 1) // 4 + 1 
                     
                     # 为任务时间段添加文本和颜色
                     for i in range(display_start_idx, min(display_end_idx, len(display_time_slots))):
@@ -869,7 +836,6 @@ elif "日程规划" in page:
         
         return styled_df, color_df
     
-    # 应用样式
     if current_tasks:
         styled_schedule, color_schedule = style_schedule(schedule_df, current_tasks, date_columns)
         
@@ -878,16 +844,16 @@ elif "日程规划" in page:
             html = ['<div style="overflow-x: auto;">']
             html.append('<table style="border-collapse: collapse; width: 100%; table-layout: fixed; font-size: 12px;">')
             
-            # 表头 - 固定列宽
+            # 表头
             html.append('<tr>')
             html.append('<th style="border: 1px solid #ddd; padding: 4px; background-color: #f2f2f2; width: 80px; text-align: center;">时间</th>')
             for col in df.columns:
                 html.append(f'<th style="border: 1px solid #ddd; padding: 4px; background-color: #f2f2f2; width: 120px; text-align: center;">{col}</th>')
             html.append('</tr>')
             
-            # 表格内容
+            #内容
             for idx, row in df.iterrows():
-                html.append('<tr style="height: 30px;">')  # 稍微减小行高
+                html.append('<tr style="height: 30px;">') 
                 html.append(f'<td style="border: 1px solid #ddd; padding: 2px; background-color: #f8f9fa; text-align: center; vertical-align: middle;"><strong>{idx}</strong></td>')
                 
                 for j, cell in enumerate(row):
@@ -915,7 +881,7 @@ elif "日程规划" in page:
             html.append('</div>')
             return ''.join(html)
         
-        # 显示表格 - 增加高度以容纳更多行
+        # 显示表格
         components.html(dataframe_to_html(styled_schedule, color_schedule), height=800, scrolling=True)
         
         # 任务管理
@@ -941,10 +907,10 @@ elif "日程规划" in page:
                     start_hour, start_min = map(int, start.split(':'))
                     end_hour, end_min = map(int, end.split(':'))
                     
-                    st.session_state.edit_start_hour = start_hour - 5  # 小时从5开始，所以减去5得到索引
-                    st.session_state.edit_start_min = start_min // 5   # 分钟是5的倍数，除以5得到索引
-                    st.session_state.edit_end_hour = end_hour - 5      # 小时从5开始，所以减去5得到索引
-                    st.session_state.edit_end_min = end_min // 5       # 分钟是5的倍数，除以5得到索引
+                    st.session_state.edit_start_hour = start_hour - 5  
+                    st.session_state.edit_start_min = start_min // 5  
+                    st.session_state.edit_end_hour = end_hour - 5      
+                    st.session_state.edit_end_min = end_min // 5       
                     
                     st.session_state.show_task_form = True
                     st.rerun()

@@ -51,7 +51,7 @@ def init_db():
         )
     ''')
     
-    # 创建点赞表 - 新增
+    # 创建点赞
     c.execute('''
         CREATE TABLE IF NOT EXISTS likes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -60,7 +60,7 @@ def init_db():
         )
     ''')
     
-    # 初始化点赞数为0（如果表为空）
+    # 初始化点赞数为0
     c.execute('SELECT COUNT(*) FROM likes')
     if c.fetchone()[0] == 0:
         c.execute('INSERT INTO likes (count) VALUES (0)')
@@ -68,7 +68,6 @@ def init_db():
     conn.commit()
     conn.close()
 
-# 在 database.py 中添加点赞相关函数
 def get_likes_count():
     """获取点赞总数"""
     conn = sqlite3.connect('user_tasks.db')
@@ -304,7 +303,7 @@ def check_and_mark_expired_tasks(user_id):
     ''', (user_id, today))
     expired_tasks = c.fetchall()
     
-    # 标记这些任务为完成（但不设置评分）
+    # 标记这些任务为完成
     for task in expired_tasks:
         task_id = task[0]
         completed_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
