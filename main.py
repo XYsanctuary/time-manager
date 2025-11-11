@@ -530,13 +530,13 @@ elif "主页" in page:
         
         ## 主要功能
         
-        - 📚 **日程规划** - 详细的日程安排和时间管理
+        - 📚 **日程记录** - 详细的日程记录和时间管理
         - 📅 **甘特图** - 项目进度可视化和任务跟踪
         - 仍在开发
         
         ## 详细介绍
         
-        **日程规划：**
+        **日程记录：**
                     
         像课表一样明确看到的日程安排，用大小直观地展示时间
                     
@@ -583,15 +583,6 @@ elif "主页" in page:
         - 感谢deepseek，协助我完成了一些代码
         - 感谢我自己
         - 感谢streamlit提供的平台
-        
-        ### 反馈与建议
-        
-        如果您有任何建议或发现了问题，欢迎通过以下方式联系我们：
-        
-        - 📧 发送邮件到……
-        - 💬 在GitHub提交issue
-        
-        我们会认真考虑每一个反馈，并持续改进这个工具！
         """)
         
         st.markdown("---")
@@ -610,9 +601,8 @@ elif "主页" in page:
 
     
 
-
 elif "日程记录" in page:
-    st.title("📚 日程规划")
+    st.title("📚 日程记录")
     
     # 日期范围选择
     col1, col2, col3 = st.columns([2, 2, 1])
@@ -639,7 +629,7 @@ elif "日程记录" in page:
         date_range.append(current_date)
         current_date += timedelta(days=1)
     
-    # 生成时间选项（5:00-24:00，每5分钟一格
+    # 生成时间选项
     def generate_time_slots():
         time_slots = []
         for hour in range(5, 24):
@@ -650,7 +640,7 @@ elif "日程记录" in page:
     
     time_slots = generate_time_slots()
     
-    # 显示用的时间标签（20分钟一次）
+    # 时间标签（20分钟一次）
     def generate_display_time_slots():
         display_slots = []
         for hour in range(5, 24):
@@ -764,7 +754,7 @@ elif "日程记录" in page:
                 st.rerun()
     
     # 显示
-    st.markdown(f"### {start_date.strftime('%Y/%m/%d')} - {end_date.strftime('%Y/%m/%d')} 日程安排")
+    st.markdown(f"### {start_date.strftime('%Y/%m/%d')} - {end_date.strftime('%Y/%m/%d')} 日程记录")
     
     # 获取任务
     current_tasks = db.get_user_tasks_by_date_range(
@@ -779,21 +769,20 @@ elif "日程记录" in page:
         styled_df = df.copy()
         
         predefined_colors = [
-            "#FF9AA2",  # 柔和的红色
-            "#FFB7B2",  # 浅珊瑚色
-            "#FFDAC1",  # 浅橙色
-            "#E2F0CB",  # 浅绿色
-            "#B5EAD7",  # 薄荷绿
-            "#D3B5E7",  # 淡紫色
-            "#64C8F0FD",  # 淡蓝色
-            "#F8B195",  # 桃红色
-            "#F67280",  # 粉红色
-            "#D67993",  # 玫瑰色
-            "#A764E2AC",  # 淡紫色
-            "#2583D6A9",  # 深蓝色
+            "#FF9AA2",  
+            "#FFB7B2",  
+            "#FFDAC1",  
+            "#E2F0CB", 
+            "#B5EAD7",  
+            "#D3B5E7",  
+            "#64C8F0FD",  
+            "#F8B195",  
+            "#F67280",  
+            "#D67993",  
+            "#A764E2AC",  
+            "#2583D6A9",  
         ]
         
-        # 分配颜色
         task_colors = {}
         for i, task in enumerate(tasks):
             task_id, title, description, task_date, start, end = task
@@ -807,29 +796,25 @@ elif "日程记录" in page:
             task_id, title, description, task_date, start, end = task
             color = task_colors[task_id]
             
-            # 找到对应的日期列
+            # 显示
             task_date_obj = datetime.strptime(task_date, "%Y-%m-%d").date()
             date_str = task_date_obj.strftime("%m/%d") + f"({['一','二','三','四','五','六','日'][task_date_obj.weekday()]})"
             
             if date_str in date_columns:
                 col_idx = date_columns.index(date_str)
                 
-                # 找到时间范围对应的行索引
                 try:
                     start_idx = time_slots.index(start)
                     end_idx = time_slots.index(end)
                     
-                    # 将5分钟间隔映射到20分钟显示间隔
                     display_start_idx = start_idx // 4  
                     display_end_idx = (end_idx - 1) // 4 + 1 
                     
-                    # 为任务时间段添加文本和颜色
                     for i in range(display_start_idx, min(display_end_idx, len(display_time_slots))):
                         current_value = styled_df.iat[i, col_idx]
                         new_value = f"{title}" if pd.isna(current_value) or current_value == "" else f"{current_value}<br>{title}"
                         styled_df.iat[i, col_idx] = new_value
                         
-                        # 设置颜色
                         color_df.iat[i, col_idx] = color
                 except ValueError:
                     continue
@@ -839,7 +824,6 @@ elif "日程记录" in page:
     if current_tasks:
         styled_schedule, color_schedule = style_schedule(schedule_df, current_tasks, date_columns)
         
-        # 使用HTML显示带样式的表格
         def dataframe_to_html(df, color_df):
             html = ['<div style="overflow-x: auto;">']
             html.append('<table style="border-collapse: collapse; width: 100%; table-layout: fixed; font-size: 12px;">')
@@ -860,7 +844,7 @@ elif "日程记录" in page:
                     cell_color = color_df.iat[df.index.get_loc(idx), j] if not pd.isna(color_df.iat[df.index.get_loc(idx), j]) else ""
                     
                     if pd.notna(cell) and cell != "":
-                        # 简单的多任务检测（通过<br>分隔）
+                        # 多任务检测
                         tasks_in_cell = str(cell).split('<br>')
                         if len(tasks_in_cell) > 1:
                             # 如果任务太多，只显示前2个，其余用"..."表示
