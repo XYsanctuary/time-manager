@@ -250,7 +250,8 @@ if "甘特图" in page:
                     if key in st.session_state:
                         del st.session_state[key]
                 st.rerun()
-    # 显示甘特图 - 只显示未完成的任务
+    
+    # 显示甘特图
     if st.session_state.gantt_tasks:
         # 计算日期范围（只基于未完成的任务）
         all_dates = []
@@ -270,12 +271,18 @@ if "甘特图" in page:
                 date_range.append(current_date)
                 current_date += timedelta(days=1)
             
-            # 创建甘特图数据框
-            date_columns = [date.strftime("%m/%d") for date in date_range]
-            gantt_df = pd.DataFrame(index=[task[1] for task in st.session_state.gantt_tasks], 
-                                  columns=date_columns)
+            # 过滤日期范围
+            today = datetime.now().date()
+            filtered_dates = [date for date in date_range if date >= today]
+
+            if not filtered_dates:
+                filtered_dates = [today]
             
-            # 填充甘特图
+            date_columns = [date.strftime("%m/%d")  for date in filtered_dates]
+            gantt_df = pd.DataFrame(index=[task[1] for task in st.session_state.gantt_tasks], 
+                                columns=date_columns)
+            
+            # 填充
             for task in st.session_state.gantt_tasks:
                 task_id, title, description, start_date, end_date, color, progress, score = task
                 start = datetime.strptime(start_date, "%Y-%m-%d").date()
@@ -284,10 +291,12 @@ if "甘特图" in page:
                 # 标记任务期间的日期
                 current = start
                 while current <= end:
-                    date_str = current.strftime("%m/%d")
-                    if date_str in date_columns:
-                        # 使用特殊标记表示任务期间
-                        gantt_df.loc[title, date_str] = "task"
+                    # 只标记在当前日期及以后的日期
+                    if current >= today:
+                        date_str = current.strftime("%m/%d")
+                        if date_str in date_columns:
+                            # 使用特殊标记表示任务期间
+                            gantt_df.loc[title, date_str] = "task"
                     current += timedelta(days=1)
             
             # 创建带样式的HTML表格 - 包含倒计时信息
@@ -349,7 +358,7 @@ if "甘特图" in page:
                         # 任务时间轴
                         for cell in row:
                             if pd.notna(cell) and cell == "task":
-                                # 使用纯色背景，没有文字内容
+                                # 纯色背景
                                 html.append(f'<td style="border: 1px solid #ddd; padding: 0; background-color: {color}; text-align: center; vertical-align: middle;"></td>')
                             else:
                                 html.append('<td style="border: 1px solid #ddd; padding: 0; text-align: center; vertical-align: middle;"></td>')
@@ -359,100 +368,106 @@ if "甘特图" in page:
                 html.append('</div>')
                 return ''.join(html)
             
-            # 显示甘特图表格
+            # 显示甘特图
             st.markdown("### 项目甘特图")
             components.html(gantt_to_html(gantt_df.fillna(""), st.session_state.gantt_tasks), 
-                          height=min(600, 40 * len(st.session_state.gantt_tasks) + 100), 
-                          scrolling=True)
+                        height=min(600, 40 * len(st.session_state.gantt_tasks) + 100), 
+                        scrolling=True)
             
-            # 任务管理 - 未完成任务
-            st.markdown("### 任务管理")
             
-            # 为未完成任务设置稍小的宽度
-            st.markdown("""
-            <style>
-            .incomplete-task .stProgress > div > div {
-                width: 80% !important;
-            }
-            </style>
-            """, unsafe_allow_html=True)
+                # 在甘特图页面代码中找到任务管理部分，修改如下：
+
+        # 任务管理 - 未完成任务
+        st.markdown("### 任务管理")
+
+        # 为未完成任务设置稍小的宽度
+        st.markdown("""
+        <style>
+        .incomplete-task .stProgress > div > div {
+            width: 80% !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+        for task in st.session_state.gantt_tasks:
+            task_id, title, description, start_date, end_date, color, progress, score = task
             
-            for task in st.session_state.gantt_tasks:
-                task_id, title, description, start_date, end_date, color, progress, score = task
-                
-                # 计算倒计时
-                today = datetime.now().date()
-                start = datetime.strptime(start_date, "%Y-%m-%d").date()
-                end = datetime.strptime(end_date, "%Y-%m-%d").date()
-                
-                countdown_text = ""
-                if today < start:
-                    # 任务未开始 - 显示开始倒计时
-                    days_until_start = (start - today).days
-                    if days_until_start <= 1:
-                        countdown_text = f"<span style='color: red; font-weight: bold;'>即将开始: {days_until_start}天</span>"
-                    else:
-                        countdown_text = f"开始: {days_until_start}天"
-                elif today <= end:
-                    # 任务进行中 - 显示结束倒计时
-                    days_until_end = (end - today).days
-                    if days_until_end <= 1:
-                        countdown_text = f"<span style='color: red; font-weight: bold;'>即将结束: {days_until_end}天</span>"
-                    else:
-                        countdown_text = f"结束: {days_until_end}天"
+            # 计算倒计时
+            today = datetime.now().date()
+            start = datetime.strptime(start_date, "%Y-%m-%d").date()
+            end = datetime.strptime(end_date, "%Y-%m-%d").date()
+            
+            # 计算自动进度（随时间均匀增加）
+            if today < start:
+                # 任务未开始
+                auto_progress = 0
+                countdown_text = f"开始: {(start - today).days}天"
+                if (start - today).days <= 1:
+                    countdown_text = f"<span style='color: red; font-weight: bold;'>即将开始: {(start - today).days}天</span>"
+            elif today > end:
+                # 任务已过期但未标记完成
+                auto_progress = 100
+                countdown_text = "<span style='color: orange; font-weight: bold;'>已过期</span>"
+            else:
+                # 任务进行中 - 计算基于时间的进度
+                total_days = (end - start).days
+                elapsed_days = (today - start).days
+                if total_days > 0:
+                    auto_progress = min(100, int((elapsed_days / total_days) * 100))
                 else:
-                    # 任务已结束但未标记完成
-                    countdown_text = "<span style='color: orange; font-weight: bold;'>已过期</span>"
-                
-                # 使用列布局，但为未完成任务设置较小的宽度
-                col1, col2, col3, col4, col5 = st.columns([3, 1, 1, 1, 1])
-                with col1:
-                    st.write(f"**{title}** - {start_date} 至 {end_date}")
-                    st.markdown(countdown_text, unsafe_allow_html=True)
-                    # 应用较小的进度条宽度
-                    st.markdown('<div class="incomplete-task">', unsafe_allow_html=True)
-                    st.progress(progress/100)
-                    st.markdown('</div>', unsafe_allow_html=True)
-                    if description:
-                        st.caption(description)
-                with col2:
-                    st.write(f"进度: {progress}%")
-                with col3:
-                    if st.button("标记完成", key=f"complete_{task_id}"):
-                        # 直接标记为完成并弹出评分对话框
-                        db.mark_task_completed(task_id)  # 先标记为完成，但不设置评分
-                        st.session_state.scoring_task = (task_id, title, start_date, end_date)
-                        st.rerun()
-                with col4:
-                    if st.button("编辑", key=f"gantt_edit_{task_id}"):
-                        st.session_state.editing_gantt_task = task_id
-                        st.session_state.gantt_edit_title = title
-                        st.session_state.gantt_edit_description = description
-                        st.session_state.gantt_edit_start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-                        st.session_state.gantt_edit_end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
-                        
-                        # 找到颜色名称
-                        color_names = {
-                            "#FF6B6B": "红色",
-                            "#45B7D1": "蓝色", 
-                            "#96CEB4": "绿色",
-                            "#FFEAA7": "黄色",
-                            "#DDA0DD": "紫色",
-                            "#4ECDC4": "青色"
-                        }
-                        st.session_state.gantt_edit_color_name = color_names.get(color, "蓝色")
-                        st.session_state.gantt_edit_progress = progress
-                        st.session_state.show_gantt_form = True
-                        st.rerun()
-                with col5:
-                    if st.button("删除", key=f"gantt_delete_{task_id}"):
-                        db.delete_gantt_task(task_id)
-                        st.session_state.gantt_tasks = db.get_incomplete_tasks(st.session_state.user_id)
-                        st.session_state.completed_tasks = db.get_completed_tasks(st.session_state.user_id)
-                        st.success("任务已删除")
-                        st.rerun()
+                    auto_progress = 100  # 开始和结束是同一天
+                    
+                countdown_text = f"结束: {(end - today).days}天"
+                if (end - today).days <= 1:
+                    countdown_text = f"<span style='color: red; font-weight: bold;'>即将结束: {(end - today).days}天</span>"
+            
+            # 使用列布局，但为未完成任务设置较小的宽度
+            col1, col2, col3, col4, col5 = st.columns([3, 1, 1, 1, 1])
+            with col1:
+                st.write(f"**{title}** - {start_date} 至 {end_date}")
+                st.markdown(countdown_text, unsafe_allow_html=True)
+                # 应用较小的进度条宽度，显示自动计算的进度
+                st.markdown('<div class="incomplete-task">', unsafe_allow_html=True)
+                st.progress(auto_progress/100)
+                st.markdown('</div>', unsafe_allow_html=True)
+                if description:
+                    st.caption(description)
+            with col2:
+                st.write(f"进度: {auto_progress}%")
+            with col3:
+                if st.button("标记完成", key=f"complete_{task_id}"):
+                    st.session_state.scoring_task = (task_id, title, start_date, end_date)
+                    st.rerun()
+            with col4:
+                if st.button("编辑", key=f"gantt_edit_{task_id}"):
+                    st.session_state.editing_gantt_task = task_id
+                    st.session_state.gantt_edit_title = title
+                    st.session_state.gantt_edit_description = description
+                    st.session_state.gantt_edit_start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+                    st.session_state.gantt_edit_end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+                    
+                    # 找到颜色名称
+                    color_names = {
+                        "#FF6B6B": "红色",
+                        "#45B7D1": "蓝色", 
+                        "#96CEB4": "绿色",
+                        "#FFEAA7": "黄色",
+                        "#DDA0DD": "紫色",
+                        "#4ECDC4": "青色"
+                    }
+                    st.session_state.gantt_edit_color_name = color_names.get(color, "蓝色")
+                    st.session_state.gantt_edit_progress = auto_progress  # 使用自动计算的进度
+                    st.session_state.show_gantt_form = True
+                    st.rerun()
+            with col5:
+                if st.button("删除", key=f"gantt_delete_{task_id}"):
+                    db.delete_gantt_task(task_id)
+                    st.session_state.gantt_tasks = db.get_incomplete_tasks(st.session_state.user_id)
+                    st.session_state.completed_tasks = db.get_completed_tasks(st.session_state.user_id)
+                    st.success("任务已删除")
+                    st.rerun()
     else:
-        st.info("还没有添加任何未完成的甘特图任务")
+            st.info("还没有添加任何未完成的甘特图任务")
     
     # 显示已完成任务 - 在页面底部折叠显示
     if st.session_state.completed_tasks:
